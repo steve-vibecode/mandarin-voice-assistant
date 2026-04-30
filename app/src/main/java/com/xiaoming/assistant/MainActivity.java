@@ -141,17 +141,34 @@ public class MainActivity extends Activity {
     }
 
     private void setupTts() {
-        tts = new TextToSpeech(this, result -> {
-            if (result == TextToSpeech.SUCCESS) {
-                tts.setLanguage(Locale.CHINESE);
-                tts.setSpeechRate(0.88f);
+        tts = new TextToSpeech(this, status -> {
+            if (status != TextToSpeech.SUCCESS) {
+                this.status.setText("TTS 初始化失败");
+                return;
             }
+    
+            int result = tts.setLanguage(Locale.CHINESE);
+    
+            if (result == TextToSpeech.LANG_MISSING_DATA ||
+                result == TextToSpeech.LANG_NOT_SUPPORTED) {
+    
+                this.status.setText("没有中文语音引擎");
+            }
+    
+            tts.setSpeechRate(0.9f);
         });
     }
 
     private void speak(String text) {
         status.setText(text);
-        if (tts != null) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "xiaoming");
+    
+        if (tts != null) {
+            Bundle params = new Bundle();
+            params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM,
+                    AudioManager.STREAM_MUSIC);
+    
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "xiaoming");
+        }
     }
 
     private void setupSpeech() {
