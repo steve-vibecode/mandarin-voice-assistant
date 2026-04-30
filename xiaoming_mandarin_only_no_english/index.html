@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <title>小明语音助手</title>
+  <style>
+    :root {
+      --bg1:#111827; --bg2:#1f2937; --card:rgba(255,255,255,.10);
+      --text:#f9fafb; --muted:#cbd5e1; --accent:#22c55e; --danger:#ef4444;
+    }
+    * { box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    html,body { height:100%; margin:0; font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    body {
+      color:var(--text);
+      background: radial-gradient(circle at 20% 10%, #334155 0, transparent 34%),
+                  linear-gradient(160deg, var(--bg1), var(--bg2));
+      overflow:hidden;
+    }
+    #app {
+      min-height:100dvh;
+      width:100vw;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:28px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .orb {
+      width:min(45vw,210px);
+      height:min(45vw,210px);
+      border-radius:999px;
+      display:grid;
+      place-items:center;
+      background:linear-gradient(135deg, rgba(34,197,94,.92), rgba(59,130,246,.9));
+      box-shadow:0 24px 90px rgba(34,197,94,.35), inset 0 0 35px rgba(255,255,255,.25);
+      font-size:72px;
+      margin-bottom:28px;
+      transition: transform .2s ease, filter .2s ease;
+    }
+    .listening .orb { transform:scale(1.07); filter:saturate(1.45); animation:pulse 1.25s infinite; }
+    @keyframes pulse {
+      0%,100% { box-shadow:0 24px 90px rgba(34,197,94,.35), 0 0 0 0 rgba(34,197,94,.35); }
+      50% { box-shadow:0 24px 90px rgba(34,197,94,.55), 0 0 0 22px rgba(34,197,94,0); }
+    }
+    h1 { margin:0 0 10px; font-size:clamp(32px,8vw,56px); letter-spacing:.04em; }
+    .subtitle { color:var(--muted); font-size:clamp(17px,4.8vw,24px); line-height:1.45; max-width:760px; }
+    .status {
+      margin-top:26px; padding:18px 20px; border-radius:24px;
+      background:var(--card); backdrop-filter:blur(14px);
+      width:min(92vw,720px); min-height:96px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:clamp(18px,5vw,28px); line-height:1.4;
+      white-space:pre-wrap;
+    }
+    .buttons {
+      position:fixed; left:14px; right:14px; bottom:calc(16px + env(safe-area-inset-bottom));
+      display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+      pointer-events:none;
+    }
+    button {
+      pointer-events:auto; border:0; border-radius:999px; padding:13px 18px;
+      font-weight:700; font-size:16px; color:#0f172a; background:#f8fafc;
+      box-shadow:0 8px 25px rgba(0,0,0,.22);
+    }
+    button.primary { background:var(--accent); color:white; }
+    button.danger { background:var(--danger); color:white; }
+    .hint {
+      position:fixed; top:calc(14px + env(safe-area-inset-top)); left:14px; right:14px;
+      color:#d1d5db; font-size:14px; opacity:.9;
+    }
+  </style>
+</head>
+<body>
+  <main id="app" aria-label="点按全屏启动小明语音助手">
+    <div class="hint">整屏可点按。第一次使用请允许麦克风和通知。</div>
+    <div class="orb">明</div>
+    <h1>小明</h1>
+    <div class="subtitle">
+      你可以说：<br>
+      “小明现在几点”<br>
+      “小明帮我弄个5点的闹钟”<br>
+      “小明帮我弄个5分钟的倒计时”
+    </div>
+    <div id="status" class="status">点一下屏幕，然后开始说话。</div>
+  </main>
+
+  <div class="buttons">
+    <button id="installBtn" class="primary" hidden>安装到手机</button>
+    <button id="notifyBtn">开启提醒</button>
+    <button id="voicesBtn">查看手机语音</button>
+    <button id="stopBtn" class="danger">停止</button>
+  </div>
+
+<script>
+(() => {
+  const app = document.getElementById("app");
+  const statusBox = document.getElementById("status");
+  const installBtn = document.getElementById("installBtn");
+  const notifyBtn = document.getElementById("notifyBtn");
+  const voicesBtn = document.getElementById("voicesBtn");
+  const stopBtn = document.getElementById("stopBtn");
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let listening = false;
+  let installPrompt = null;
+  let timers = [];
+
+  const zhDigits = {"零":0,"〇":0,"一":1,"二":2,"两":2,"俩":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9};
+  function chineseToNumber(raw) {
+    if (!raw) return NaN;
+    raw = String(raw).trim();
+    const arabic = raw.match(/\d+/);
+    if (arabic) return parseInt(arabic[0], 10);
+    if (raw === "十") return 10;
+    if (raw.includes("十")) {
+      const [a,b] = raw.split("十");
+      const tens = a ? zhDigits[a] || 1 : 1;
+      const ones = b ? zhDigits[b] || 0 : 0;
+      return tens * 10 + ones;
+    }
+    return zhDigits[raw] ?? NaN;
+  }
+
+  function setStatus(text) { statusBox.textContent = text; }
+
+  function getMandarinVoice() {
+    const voices = speechSynthesis.getVoices();
+
+    // Android/Chrome names vary. Only accept actual Chinese/Mandarin voices.
+    const zhVoice = voices.find(v =>
+      /^zh/i.test(v.lang) ||
+      /chinese|mandarin|普通话|中文|中国|china/i.test(v.name)
+    );
+
+    return zhVoice || null;
+  }
+
+  function showVoiceDebug() {
+    const voices = speechSynthesis.getVoices();
+    const list = voices.map(v => `${v.name} / ${v.lang}`).join("
+");
+    setStatus("当前手机可用语音：
+" + (list || "没有读取到语音列表"));
+  }
+
+  function speak(text) {
+    setStatus(text);
+
+    if (!("speechSynthesis" in window)) {
+      setStatus(text + "
+
+这个浏览器不支持语音播报。");
+      return;
+    }
+
+    speechSynthesis.cancel();
+
+    const voice = getMandarinVoice();
+
+    // Critical: do NOT fall back to English voice.
+    if (!voice) {
+      setStatus(
+        text +
+        "
+
+⚠️ 这台手机/浏览器没有提供中文语音，所以我不会用英文读出来。
+
+" +
+        "请安装或启用 Android 的中文 TTS：Settings → Text-to-speech output → Preferred engine → Speech Services by Google → Install voice data → 中文（中国）。
+
+" +
+        "也可以点下面“查看手机语音”。"
+      );
+      return;
+    }
+
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = voice.lang || "zh-CN";
+    u.voice = voice;
+    u.rate = 0.88;
+    u.pitch = 1;
+
+    u.onerror = () => {
+      setStatus(text + "
+
+中文语音播放失败。请检查 Android 中文 TTS 是否安装。");
+    };
+
+    speechSynthesis.speak(u);
+  }
+
+  if ("speechSynthesis" in window) {
+    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+    setTimeout(() => speechSynthesis.getVoices(), 300);
+    setTimeout(() => speechSynthesis.getVoices(), 1200);
+  }
+
+  function notify(title, body) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      try { new Notification(title, { body, icon: "./icons/icon-192.png", badge: "./icons/icon-192.png" }); } catch {}
+    }
+    speak(body);
+    if (navigator.vibrate) navigator.vibrate([250,120,250,120,500]);
+  }
+
+  function formatTime(d = new Date()) {
+    const h = d.getHours();
+    const m = d.getMinutes();
+    if (m === 0) return `${h}点整`;
+    return `${h}点${String(m).padStart(2, "0")}分`;
+  }
+
+  function setCountdown(minutes) {
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      speak("我没听清楚倒计时时间。");
+      return;
+    }
+    const due = Date.now() + minutes * 60 * 1000;
+    const id = setTimeout(() => notify("小明倒计时", `${minutes}分钟倒计时到了。`), minutes * 60 * 1000);
+    timers.push({ id, due, type:"countdown" });
+    speak(`好的，已设置${minutes}分钟倒计时。`);
+  }
+
+  function setAlarm(hour, minute = 0) {
+    if (!Number.isFinite(hour) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      speak("我没听清楚闹钟时间。");
+      return;
+    }
+    const now = new Date();
+    const dueDate = new Date();
+    dueDate.setHours(hour, minute, 0, 0);
+    if (dueDate <= now) dueDate.setDate(dueDate.getDate() + 1);
+    const ms = dueDate.getTime() - now.getTime();
+    const id = setTimeout(() => notify("小明闹钟", `${formatTime(dueDate)}到了。`), ms);
+    timers.push({ id, due: dueDate.getTime(), type:"alarm" });
+    speak(`好的，已设置${formatTime(dueDate)}的闹钟。`);
+  }
+
+  function parseCommand(text) {
+    const t = text.replace(/[，。！？\s]/g, "");
+    if (!t.includes("小明")) {
+      speak("请先叫我小明。");
+      return;
+    }
+
+    if (/(现在)?几点|时间/.test(t)) {
+      speak(`现在是${formatTime()}。`);
+      return;
+    }
+
+    let m = t.match(/(?:弄个|设个|设置|定个|帮我弄个)?([0-9零〇一二两俩三四五六七八九十]{1,3})点(?:([0-9零〇一二两俩三四五六七八九十]{1,3})分?)?(?:的)?闹钟/);
+    if (m) {
+      setAlarm(chineseToNumber(m[1]), m[2] ? chineseToNumber(m[2]) : 0);
+      return;
+    }
+
+    m = t.match(/(?:弄个|设个|设置|定个|帮我弄个)?([0-9零〇一二两俩三四五六七八九十]{1,3})(秒|分钟|小时)(?:的)?倒计时/);
+    if (m) {
+      const n = chineseToNumber(m[1]);
+      const unit = m[2];
+      if (unit === "秒") {
+        const id = setTimeout(() => notify("小明倒计时", `${n}秒倒计时到了。`), n * 1000);
+        timers.push({ id, due: Date.now() + n * 1000, type:"countdown" });
+        speak(`好的，已设置${n}秒倒计时。`);
+      } else if (unit === "分钟") {
+        setCountdown(n);
+      } else {
+        setCountdown(n * 60);
+      }
+      return;
+    }
+
+    speak("我现在会听：几点、闹钟、倒计时。请再说一遍。");
+  }
+
+  function startListening() {
+    if (!SpeechRecognition) {
+      speak("这个浏览器不支持语音识别。请用安卓手机上的 Chrome 或 Edge 打开。");
+      return;
+    }
+    if (listening) {
+      stopListening();
+      return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = "zh-CN";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      listening = true;
+      app.classList.add("listening");
+      setStatus("正在听……请说：小明现在几点。");
+    };
+    recognition.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      setStatus(`听到：${text}`);
+      parseCommand(text);
+    };
+    recognition.onerror = (e) => {
+      setStatus(`语音识别出错：${e.error}\n请点屏幕再试。`);
+    };
+    recognition.onend = () => {
+      listening = false;
+      app.classList.remove("listening");
+      if (statusBox.textContent.includes("正在听")) {
+        setStatus("已停止录音。点屏幕可再次启动。");
+      }
+    };
+
+    try { recognition.start(); } catch {}
+  }
+
+  function stopListening() {
+    try { recognition && recognition.stop(); } catch {}
+    speechSynthesis.cancel();
+    listening = false;
+    app.classList.remove("listening");
+    setStatus("已停止。点屏幕可再次启动。");
+  }
+
+  app.addEventListener("click", () => {
+    if (listening) stopListening();
+    else startListening();
+  });
+  stopBtn.addEventListener("click", (e) => { e.stopPropagation(); stopListening(); });
+  voicesBtn.addEventListener("click", (e) => { e.stopPropagation(); showVoiceDebug(); });
+
+  notifyBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!("Notification" in window)) {
+      speak("这个浏览器不支持系统通知。");
+      return;
+    }
+    const p = await Notification.requestPermission();
+    speak(p === "granted" ? "提醒已开启。" : "你没有允许提醒。");
+  });
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    installBtn.hidden = false;
+  });
+
+  installBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+    installBtn.hidden = true;
+  });
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      const due = timers.filter(x => x.due <= Date.now());
+      if (due.length) notify("小明提醒", "有一个提醒时间已经到了。");
+    }
+  });
+})();
+</script>
+</body>
+</html>
