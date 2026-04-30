@@ -1,0 +1,14 @@
+plugins { id "com.android.application" }
+
+android {
+    namespace "com.xiaoming.assistant"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.xiaoming.assistant"
+        minSdk 23
+        targetSdk 35
+        versionCode 2
+        versionName "1.1"
+    }
+}
