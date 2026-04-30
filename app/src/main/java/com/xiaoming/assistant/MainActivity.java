@@ -81,6 +81,20 @@ public class MainActivity extends Activity {
         setupSpeech();
         setupCallListener();
         status.setText("点一下开始说话\n再点一次停止\n\n可以说：\n小明现在几点\n小明打电话给爸爸\n小明帮我弄个5点的闹钟\n小明帮我弄个5分钟的倒计时");
+        Intent checkIntent = new Intent();
+        checkIntent.setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+        startActivityForResult(checkIntent, 1);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == 1) {
+            if (resultCode != TextToSpeech.Engine.CHECK_VOICE_DATA_PASS) {
+                Intent installIntent = new Intent();
+                installIntent.setAction(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
+                startActivity(installIntent);
+            }
+        }
     }
 
     private void buildUi() {
@@ -153,26 +167,23 @@ public class MainActivity extends Activity {
     }
 
     private void setupTts() {
-        tts = new TextToSpeech(this, statusCode -> {
-            if (statusCode != TextToSpeech.SUCCESS) {
-                status.setText("TTS 初始化失败");
-                openTtsSettings();
+        tts = new TextToSpeech(this, status -> {
+            if (status != TextToSpeech.SUCCESS) {
+                this.status.setText("TTS 初始化失败");
                 return;
             }
     
-            Locale zh = Locale.CHINA;
+            // 强制用 Google TTS（如果有）
+            try {
+                tts.setEngineByPackageName("com.google.android.tts");
+            } catch (Exception ignored) {}
+    
+            Locale zh = Locale.SIMPLIFIED_CHINESE;
             int result = tts.setLanguage(zh);
     
-            if (result == TextToSpeech.LANG_MISSING_DATA ||
-                    result == TextToSpeech.LANG_NOT_SUPPORTED) {
-    
-                status.setText("没有中文语音引擎，请安装中文语音包");
-                openTtsSettings();
-                return;
-            }
-    
             tts.setSpeechRate(0.9f);
-            speak("小明准备好了");
+    
+            speak("测试语音");
         });
     }
 
