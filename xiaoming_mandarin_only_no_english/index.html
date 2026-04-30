@@ -283,42 +283,52 @@
 
   function startListening() {
     if (!SpeechRecognition) {
-      speak("这个浏览器不支持语音识别。请用安卓手机上的 Chrome 或 Edge 打开。");
+      setStatus("❌ 浏览器不支持语音识别（请用安卓 Chrome）");
       return;
     }
+  
     if (listening) {
       stopListening();
       return;
     }
-
+  
     recognition = new SpeechRecognition();
     recognition.lang = "zh-CN";
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
+  
     recognition.onstart = () => {
       listening = true;
-      app.classList.add("listening");
-      setStatus("正在听……请说：小明现在几点。");
+      setStatus("🎤 正在听...");
     };
+  
     recognition.onresult = (e) => {
       const text = e.results[0][0].transcript;
-      setStatus(`听到：${text}`);
+      setStatus("听到：" + text);
       parseCommand(text);
     };
+  
     recognition.onerror = (e) => {
-      setStatus(`语音识别出错：${e.error}\n请点屏幕再试。`);
-    };
-    recognition.onend = () => {
-      listening = false;
-      app.classList.remove("listening");
-      if (statusBox.textContent.includes("正在听")) {
-        setStatus("已停止录音。点屏幕可再次启动。");
+      setStatus("❌ 错误: " + e.error);
+  
+      // common android fixes
+      if (e.error === "not-allowed") {
+        setStatus("❌ 麦克风权限没开");
+      }
+      if (e.error === "network") {
+        setStatus("❌ 需要联网（语音识别走Google服务器）");
       }
     };
-
-    try { recognition.start(); } catch {}
+  
+    recognition.onend = () => {
+      listening = false;
+    };
+  
+    try {
+      recognition.start();
+    } catch (err) {
+      setStatus("❌ 无法启动语音识别");
+    }
   }
 
   function stopListening() {
