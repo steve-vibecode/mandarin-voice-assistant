@@ -138,15 +138,23 @@
 
   function speak(text) {
     setStatus(text);
-    try {
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "zh-CN";
-      u.voice = getMandarinVoice();
-      u.rate = 0.88;
-      u.pitch = 1;
-      speechSynthesis.speak(u);
-    } catch {}
+  
+    speechSynthesis.cancel();
+  
+    const voices = speechSynthesis.getVoices();
+  
+    // force Chinese voice
+    let voice =
+      voices.find(v => v.lang === "zh-CN") ||
+      voices.find(v => v.lang.startsWith("zh")) ||
+      voices[0];
+  
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN";
+    u.voice = voice;
+    u.rate = 0.9;
+  
+    speechSynthesis.speak(u);
   }
 
   if ("speechSynthesis" in window) {
