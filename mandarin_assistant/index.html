@@ -40,23 +40,10 @@
     <div id="status" class="status">页面已加载。点屏幕开始录音，再点一次停止。</div>
   </main>
 
-  <div class="buttons">
-    <button id="installBtn" class="primary" hidden>安装到手机</button>
-    <button id="notifyBtn">开启提醒</button>
-    <button id="voicesBtn">查看手机语音</button>
-    <button id="testBtn">测试按钮</button>
-    <button id="stopBtn" class="danger">停止</button>
-  </div>
-
 <script>
 (() => {
   const app = document.getElementById("app");
   const statusBox = document.getElementById("status");
-  const installBtn = document.getElementById("installBtn");
-  const notifyBtn = document.getElementById("notifyBtn");
-  const voicesBtn = document.getElementById("voicesBtn");
-  const testBtn = document.getElementById("testBtn");
-  const stopBtn = document.getElementById("stopBtn");
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
@@ -296,46 +283,6 @@
   app.addEventListener("click", () => {
     if (listening) stopListening();
     else startListening();
-  });
-
-  stopBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    stopListening();
-  });
-
-  voicesBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    showVoiceDebug();
-  });
-
-  testBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    setStatus("按钮正常。JS 正在运行。");
-  });
-
-  notifyBtn.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    if (!("Notification" in window)) {
-      speak("这个浏览器不支持系统通知。");
-      return;
-    }
-    const p = await Notification.requestPermission();
-    speak(p === "granted" ? "提醒已开启。" : "你没有允许提醒。");
-  });
-
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    installPrompt = e;
-    installBtn.hidden = false;
-  });
-
-  installBtn.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    await installPrompt.userChoice;
-    installPrompt = null;
-    installBtn.hidden = true;
   });
 
   document.addEventListener("visibilitychange", () => {
