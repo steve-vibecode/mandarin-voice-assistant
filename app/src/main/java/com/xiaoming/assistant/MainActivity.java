@@ -119,19 +119,32 @@ public class MainActivity extends Activity {
 
     private void requestNeededPermissions() {
         ArrayList<String> perms = new ArrayList<>();
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) perms.add(Manifest.permission.RECORD_AUDIO);
-        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) perms.add(Manifest.permission.READ_CONTACTS);
-        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) perms.add(Manifest.permission.CALL_PHONE);
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) perms.add(Manifest.permission.POST_NOTIFICATIONS);
-        if (!perms.isEmpty()) requestPermissions(perms.toArray(new String[0]), 100);
-        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+    
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
+            perms.add(Manifest.permission.RECORD_AUDIO);
+    
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED)
+            perms.add(Manifest.permission.READ_CONTACTS);
+    
+        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED)
+            perms.add(Manifest.permission.CALL_PHONE);
+    
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            perms.add(Manifest.permission.POST_NOTIFICATIONS);
+    
+        // 🔥 MOVE HERE
+        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED)
             perms.add(Manifest.permission.READ_PHONE_STATE);
-        }
+    
         if (Build.VERSION.SDK_INT >= 26 &&
-                checkSelfPermission(Manifest.permission.ANSWER_PHONE_CALLS) != PackageManager.PERMISSION_GRANTED) {
+            checkSelfPermission(Manifest.permission.ANSWER_PHONE_CALLS) != PackageManager.PERMISSION_GRANTED)
             perms.add(Manifest.permission.ANSWER_PHONE_CALLS);
-        }
-
+    
+        // 🔥 request AFTER collecting everything
+        if (!perms.isEmpty())
+            requestPermissions(perms.toArray(new String[0]), 100);
+    
         if (Build.VERSION.SDK_INT >= 31) {
             AlarmManager am = (AlarmManager)getSystemService(ALARM_SERVICE);
             if (am != null && !am.canScheduleExactAlarms()) {
