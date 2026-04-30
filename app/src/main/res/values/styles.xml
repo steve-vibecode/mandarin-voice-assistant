@@ -4,11 +4,9 @@
         <item name="android:statusBarColor">#111827</item>
         <item name="android:navigationBarColor">#111827</item>
     </style>
+
     <style name="AlertTheme" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:windowFullscreen">true</item>
-        <item name="android:windowShowWhenLocked">true</item>
-        <item name="android:windowTurnScreenOn">true</item>
-        <item name="android:windowDismissKeyguard">true</item>
         <item name="android:statusBarColor">#991B1B</item>
         <item name="android:navigationBarColor">#991B1B</item>
     </style>
