@@ -16,6 +16,12 @@ import android.view.Gravity;
 import android.widget.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import android.telecom.TelecomManager;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
+
+private boolean incomingCall = false;
+private TelephonyManager telephonyManager;
 
 public class MainActivity extends Activity {
     private TextView status;
@@ -25,6 +31,46 @@ public class MainActivity extends Activity {
     private boolean listening = false;
     public static final String CHANNEL_ID = "xiaoming_alarm_channel";
 
+    private void setupCallListener() {
+        telephonyManager = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+    
+        if (telephonyManager == null) return;
+    
+        telephonyManager.listen(new PhoneStateListener() {
+            @Override
+            public void onCallStateChanged(int state, String phoneNumber) {
+                if (state == TelephonyManager.CALL_STATE_RINGING) {
+                    incomingCall = true;
+                    status.setText("有来电\n点击屏幕任意位置接听");
+                } else {
+                    incomingCall = false;
+                }
+            }
+        }, PhoneStateListener.LISTEN_CALL_STATE);
+    }
+    
+    private void answerIncomingCall() {
+        if (Build.VERSION.SDK_INT < 26) {
+            speak("这个安卓版本不支持应用内接听电话。");
+            return;
+        }
+    
+        if (checkSelfPermission(Manifest.permission.ANSWER_PHONE_CALLS) != PackageManager.PERMISSION_GRANTED) {
+            speak("没有接听电话权限。");
+            return;
+        }
+    
+        try {
+            TelecomManager telecomManager = (TelecomManager) getSystemService(TELECOM_SERVICE);
+            if (telecomManager != null) {
+                telecomManager.acceptRingingCall();
+                incomingCall = false;
+            }
+        } catch (Exception e) {
+            speak("无法接听电话。");
+        }
+    }
+
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
         createNotificationChannel();
@@ -32,6 +78,7 @@ public class MainActivity extends Activity {
         requestNeededPermissions();
         setupTts();
         setupSpeech();
+        setupCallListener();
         status.setText("点一下开始说话\n再点一次停止\n\n可以说：\n小明现在几点\n小明打电话给爸爸\n小明帮我弄个5点的闹钟\n小明帮我弄个5分钟的倒计时");
     }
 
@@ -57,7 +104,15 @@ public class MainActivity extends Activity {
 
         root.addView(title);
         root.addView(status);
-        root.setOnClickListener(v -> { if (listening) stopListening(); else startListening(); });
+        root.setOnClickListener(v -> {
+            if (incomingCall) {
+                answerIncomingCall();
+                return;
+            }
+        
+            if (listening) stopListening();
+            else startListening();
+        });
         setContentView(root);
     }
 
@@ -68,6 +123,13 @@ public class MainActivity extends Activity {
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) perms.add(Manifest.permission.CALL_PHONE);
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) perms.add(Manifest.permission.POST_NOTIFICATIONS);
         if (!perms.isEmpty()) requestPermissions(perms.toArray(new String[0]), 100);
+        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            perms.add(Manifest.permission.READ_PHONE_STATE);
+        }
+        if (Build.VERSION.SDK_INT >= 26 &&
+                checkSelfPermission(Manifest.permission.ANSWER_PHONE_CALLS) != PackageManager.PERMISSION_GRANTED) {
+            perms.add(Manifest.permission.ANSWER_PHONE_CALLS);
+        }
 
         if (Build.VERSION.SDK_INT >= 31) {
             AlarmManager am = (AlarmManager)getSystemService(ALARM_SERVICE);
