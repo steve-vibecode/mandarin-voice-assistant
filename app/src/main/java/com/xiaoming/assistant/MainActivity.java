@@ -33,8 +33,12 @@ public class MainActivity extends Activity {
     public static final String CHANNEL_ID = "xiaoming_alarm_channel";
 
     private void setupCallListener() {
-        telephonyManager = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
     
+        telephonyManager = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
         if (telephonyManager == null) return;
     
         telephonyManager.listen(new PhoneStateListener() {
@@ -81,20 +85,26 @@ public class MainActivity extends Activity {
         setupSpeech();
         setupCallListener();
         status.setText("点一下开始说话\n再点一次停止\n\n可以说：\n小明现在几点\n小明打电话给爸爸\n小明帮我弄个5点的闹钟\n小明帮我弄个5分钟的倒计时");
-        Intent checkIntent = new Intent();
-        checkIntent.setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
-        startActivityForResult(checkIntent, 1);
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == 1) {
-            if (resultCode != TextToSpeech.Engine.CHECK_VOICE_DATA_PASS) {
-                Intent installIntent = new Intent();
-                installIntent.setAction(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
-                startActivity(installIntent);
+    private void setupTts() {
+        tts = new TextToSpeech(this, statusCode -> {
+            if (statusCode != TextToSpeech.SUCCESS) {
+                status.setText("TTS 初始化失败");
+                return;
             }
-        }
+    
+            int result = tts.setLanguage(Locale.CHINA);
+    
+            if (result == TextToSpeech.LANG_MISSING_DATA ||
+                    result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                status.setText("没有中文语音引擎，请安装华为语音服务或 Google Speech Services");
+                return;
+            }
+    
+            tts.setSpeechRate(0.9f);
+            speak("小明准备好了");
+        });
     }
 
     private void buildUi() {
@@ -172,11 +182,6 @@ public class MainActivity extends Activity {
                 this.status.setText("TTS 初始化失败");
                 return;
             }
-    
-            // 强制用 Google TTS（如果有）
-            try {
-                tts.setEngineByPackageName("com.google.android.tts");
-            } catch (Exception ignored) {}
     
             Locale zh = Locale.SIMPLIFIED_CHINESE;
             int result = tts.setLanguage(zh);
