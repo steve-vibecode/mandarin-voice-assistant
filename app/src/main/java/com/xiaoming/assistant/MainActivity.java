@@ -203,19 +203,41 @@ public class MainActivity extends Activity {
     }
 
     private void scheduleReminder(long triggerAtMillis, String title, String message) {
-        AlarmManager am = (AlarmManager)getSystemService(ALARM_SERVICE);
+        AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+    
         Intent i = new Intent(this, AlarmReceiver.class);
         i.putExtra("title", title);
         i.putExtra("message", message);
-        PendingIntent pi = PendingIntent.getBroadcast(this, (int)(System.currentTimeMillis()%Integer.MAX_VALUE), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        if (am == null) { speak("无法设置提醒。"); return; }
-        if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
-            speak("请允许精确闹钟权限后再试。");
-            startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM));
+    
+        // 🔥 IMPORTANT: use stable requestCode
+        int requestCode = (int) (triggerAtMillis % Integer.MAX_VALUE);
+    
+        PendingIntent pi = PendingIntent.getBroadcast(
+            this,
+            requestCode,
+            i,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+    
+        if (am == null) {
+            speak("无法设置提醒。");
             return;
         }
-        if (Build.VERSION.SDK_INT >= 23) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi);
-        else am.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi);
+    
+        // 🔥 FORCE exact alarm (fix for modern Android)
+        if (Build.VERSION.SDK_INT >= 23) {
+            am.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                pi
+            );
+        } else {
+            am.setExact(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                pi
+            );
+        }
     }
 
     private static class AlarmTime { int hour; int minute; AlarmTime(int h,int m){hour=h;minute=m;} }
