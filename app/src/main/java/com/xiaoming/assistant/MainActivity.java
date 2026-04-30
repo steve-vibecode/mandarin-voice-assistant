@@ -20,11 +20,10 @@ import android.telecom.TelecomManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
-
+private boolean incomingCall = false;
+private TelephonyManager telephonyManager;
 
 public class MainActivity extends Activity {
-    private boolean incomingCall = false;
-    private TelephonyManager telephonyManager;
     private TextView status;
     private SpeechRecognizer recognizer;
     private Intent speechIntent;
