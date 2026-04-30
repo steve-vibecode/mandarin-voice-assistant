@@ -153,23 +153,38 @@ public class MainActivity extends Activity {
     }
 
     private void setupTts() {
-        tts = new TextToSpeech(this, status -> {
-            if (status != TextToSpeech.SUCCESS) {
-                this.status.setText("TTS 初始化失败");
+        tts = new TextToSpeech(this, statusCode -> {
+            if (statusCode != TextToSpeech.SUCCESS) {
+                status.setText("TTS 初始化失败");
+                openTtsSettings();
                 return;
             }
     
-            Locale zh = Locale.SIMPLIFIED_CHINESE;
+            Locale zh = Locale.CHINA;
             int result = tts.setLanguage(zh);
     
             if (result == TextToSpeech.LANG_MISSING_DATA ||
-                result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    result == TextToSpeech.LANG_NOT_SUPPORTED) {
     
-                this.status.setText("没有中文语音引擎");
+                status.setText("没有中文语音引擎，请安装中文语音包");
+                openTtsSettings();
+                return;
             }
     
             tts.setSpeechRate(0.9f);
+            speak("小明准备好了");
         });
+    }
+
+    private void openTtsSettings() {
+        try {
+            Intent intent = new Intent("com.android.settings.TTS_SETTINGS");
+            startActivity(intent);
+        } catch (Exception e) {
+            try {
+                startActivity(new Intent(Settings.ACTION_SETTINGS));
+            } catch (Exception ignored) {}
+        }
     }
 
     private void speak(String text) {
