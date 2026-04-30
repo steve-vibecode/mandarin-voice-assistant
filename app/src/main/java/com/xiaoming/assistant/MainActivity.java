@@ -159,7 +159,8 @@ public class MainActivity extends Activity {
                 return;
             }
     
-            int result = tts.setLanguage(Locale.CHINESE);
+            Locale zh = Locale.SIMPLIFIED_CHINESE;
+            int result = tts.setLanguage(zh);
     
             if (result == TextToSpeech.LANG_MISSING_DATA ||
                 result == TextToSpeech.LANG_NOT_SUPPORTED) {
