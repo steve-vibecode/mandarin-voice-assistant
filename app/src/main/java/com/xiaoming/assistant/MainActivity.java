@@ -209,14 +209,21 @@ public class MainActivity extends Activity {
         i.putExtra("title", title);
         i.putExtra("message", message);
     
-        // 🔥 IMPORTANT: use stable requestCode
         int requestCode = (int) (triggerAtMillis % Integer.MAX_VALUE);
     
         PendingIntent pi = PendingIntent.getBroadcast(
-            this,
-            requestCode,
-            i,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                this,
+                requestCode,
+                i,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+    
+        Intent openApp = new Intent(this, MainActivity.class);
+        PendingIntent showIntent = PendingIntent.getActivity(
+                this,
+                requestCode + 1,
+                openApp,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
     
         if (am == null) {
@@ -224,20 +231,10 @@ public class MainActivity extends Activity {
             return;
         }
     
-        // 🔥 FORCE exact alarm (fix for modern Android)
-        if (Build.VERSION.SDK_INT >= 23) {
-            am.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                triggerAtMillis,
-                pi
-            );
-        } else {
-            am.setExact(
-                AlarmManager.RTC_WAKEUP,
-                triggerAtMillis,
-                pi
-            );
-        }
+        AlarmManager.AlarmClockInfo info =
+                new AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent);
+    
+        am.setAlarmClock(info, pi);
     }
 
     private static class AlarmTime { int hour; int minute; AlarmTime(int h,int m){hour=h;minute=m;} }
