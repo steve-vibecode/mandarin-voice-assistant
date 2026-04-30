@@ -20,7 +20,10 @@ import android.telecom.TelecomManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
-
+@Override
+public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    // check and react properly
+}
 
 public class MainActivity extends Activity {
     private boolean incomingCall = false;
