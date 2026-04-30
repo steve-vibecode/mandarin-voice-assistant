@@ -176,22 +176,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void setupTts() {
-        tts = new TextToSpeech(this, status -> {
-            if (status != TextToSpeech.SUCCESS) {
-                this.status.setText("TTS 初始化失败");
-                return;
-            }
-    
-            Locale zh = Locale.SIMPLIFIED_CHINESE;
-            int result = tts.setLanguage(zh);
-    
-            tts.setSpeechRate(0.9f);
-    
-            speak("测试语音");
-        });
-    }
-
     private void openTtsSettings() {
         try {
             Intent intent = new Intent("com.android.settings.TTS_SETTINGS");
